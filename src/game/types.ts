@@ -12,7 +12,9 @@ export type Direction = 'up' | 'right' | 'down' | 'left';
 export type GameAction = Direction | 'wait';
 export type GameStatus = 'playing' | 'won' | 'lost';
 export type EventKind = 'meeting' | 'blackout' | 'cleaning-cart';
-export type GameMode = 'daily' | 'campaign';
+export type GameMode = 'daily' | 'campaign' | 'boss-campaign';
+export type BossAction = 'advance' | 'hold' | 'reverse';
+export type BossGameStatus = 'playing' | 'boss-won' | 'employee-escaped';
 
 interface ChallengeEventBase {
   id: string;
@@ -37,7 +39,7 @@ export interface CleaningCartEvent extends ChallengeEventBase {
 
 export type ChallengeEvent = MeetingEvent | BlackoutEvent | CleaningCartEvent;
 
-interface ChallengeRules {
+export interface ChallengeRules {
   schemaVersion: number;
   seed: number;
   layoutId: string;
@@ -81,6 +83,69 @@ export interface CampaignLevel {
 
 export interface CampaignProgress {
   completedLevelIds: string[];
+}
+
+export interface BossActionLimits {
+  holds: number;
+  reversals: number;
+  reverseCooldownTurns: number;
+}
+
+export interface BossChallengeDefinition extends ChallengeRules {
+  mode: 'boss-campaign';
+  challengeId: string;
+  levelId: string;
+  levelNumber: number;
+  title: string;
+  description: string;
+  actionLimits: BossActionLimits;
+  employeeActionPriority: GameAction[];
+}
+
+export interface BossCampaignLevel {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  challenge: BossChallengeDefinition;
+}
+
+export interface BossCampaignProgress {
+  completedLevelIds: string[];
+}
+
+export interface BossGameState {
+  employee: Point;
+  employeeFacing: Direction;
+  bossIndex: number;
+  bossDirection: 1 | -1;
+  turn: number;
+  catches: number;
+  employeeHasCard: boolean;
+  holdsRemaining: number;
+  reversalsRemaining: number;
+  reverseCooldown: number;
+  status: BossGameStatus;
+  winReason?: 'caught' | 'timeout';
+}
+
+export type BossGameEffect =
+  | { kind: 'boss-moved' }
+  | { kind: 'boss-held' }
+  | { kind: 'boss-reversed' }
+  | { kind: 'blocked'; reason: 'no-holds' | 'no-reversals' | 'reverse-cooldown' | 'finished' }
+  | { kind: 'employee-moved' }
+  | { kind: 'employee-waited' }
+  | { kind: 'employee-card-picked' }
+  | { kind: 'event-started'; event: ChallengeEvent }
+  | { kind: 'employee-caught'; catches: number }
+  | { kind: 'boss-won'; reason: 'caught' | 'timeout' }
+  | { kind: 'employee-escaped' };
+
+export interface BossTransitionResult {
+  state: BossGameState;
+  effects: BossGameEffect[];
+  employeeAction: GameAction;
 }
 
 export interface GameState {

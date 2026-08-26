@@ -1,9 +1,18 @@
-import type { ChallengeDefinition, Direction, GameState, Point } from './game/types';
+import type {
+  BossChallengeDefinition,
+  BossGameState,
+  ChallengeDefinition,
+  Direction,
+  GameState,
+  Point,
+} from './game/types';
 import { pointKey, pointsEqual } from './game/types';
 import {
+  advanceBossIndex,
   getActiveCleaningCart,
   getBossFacing,
   getBossPoint,
+  getBossVision,
   getCurrentVision,
   getNextBossState,
   getNextVision,
@@ -275,5 +284,154 @@ export function renderBoard(
   }
 
   canvas.dataset.player = pointKey(state.player);
+  canvas.dataset.boss = pointKey(boss);
+}
+
+function drawPatrolRoute(
+  context: CanvasRenderingContext2D,
+  challenge: BossChallengeDefinition,
+): void {
+  context.fillStyle = 'rgb(255 244 222 / 22%)';
+  for (const point of challenge.bossPath) {
+    const origin = tileOrigin(point);
+    context.fillRect(origin.x + 7, origin.y + 7, 2, 2);
+  }
+}
+
+function drawTargetMarker(
+  context: CanvasRenderingContext2D,
+  point: Point,
+): void {
+  const origin = tileOrigin(point);
+  context.save();
+  context.strokeStyle = palette.player;
+  context.lineWidth = 1;
+  context.setLineDash([2, 2]);
+  context.strokeRect(origin.x + 1.5, origin.y + 1.5, 13, 13);
+  context.setLineDash([]);
+  context.restore();
+}
+
+function drawBossDestination(
+  context: CanvasRenderingContext2D,
+  point: Point,
+  color: string,
+  inset: number,
+): void {
+  const origin = tileOrigin(point);
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = 1;
+  context.setLineDash([2, 2]);
+  context.strokeRect(
+    origin.x + inset + 0.5,
+    origin.y + inset + 0.5,
+    TILE_SIZE - inset * 2 - 1,
+    TILE_SIZE - inset * 2 - 1,
+  );
+  context.setLineDash([]);
+  context.restore();
+}
+
+function drawControlledBossMarker(
+  context: CanvasRenderingContext2D,
+  point: Point,
+): void {
+  const origin = tileOrigin(point);
+  context.fillStyle = palette.card;
+  context.fillRect(origin.x + 3, origin.y, 3, 1);
+  context.fillRect(origin.x + 10, origin.y, 3, 1);
+  context.fillRect(origin.x + 2, origin.y + 1, 1, 3);
+  context.fillRect(origin.x + 13, origin.y + 1, 1, 3);
+}
+
+export function renderBossBoard(
+  canvas: HTMLCanvasElement,
+  challenge: BossChallengeDefinition,
+  state: BossGameState,
+): void {
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas 2D context is unavailable.');
+  context.imageSmoothingEnabled = false;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < challenge.height; y += 1) {
+    for (let x = 0; x < challenge.width; x += 1) {
+      const point = { x, y };
+      const tile = challenge.tiles[y]?.[x];
+      if (tile === '#') drawWall(context, point);
+      else if (tile === 'D') drawDesk(context, point);
+      else if (tile === 'P') drawPlant(context, point);
+      else drawFloor(context, point);
+    }
+  }
+
+  drawPatrolRoute(context, challenge);
+  drawVision(
+    context,
+    getBossVision(
+      challenge,
+      state.bossIndex,
+      state.bossDirection,
+      state.turn,
+    ),
+    '#ff5364',
+    0.34,
+    0,
+  );
+  drawStartMarker(context, challenge.start);
+  drawElevator(context, challenge.exit, state.employeeHasCard);
+  if (!state.employeeHasCard) drawCard(context, challenge.card);
+
+  const cart = getActiveCleaningCart(challenge, state.turn);
+  if (cart) drawCart(context, cart);
+
+  drawTargetMarker(
+    context,
+    state.employeeHasCard ? challenge.exit : challenge.card,
+  );
+  const forwardIndex = advanceBossIndex(
+    challenge,
+    state.bossIndex,
+    state.bossDirection,
+  );
+  const reverseIndex = advanceBossIndex(
+    challenge,
+    state.bossIndex,
+    (state.bossDirection * -1) as 1 | -1,
+  );
+  drawBossDestination(
+    context,
+    getBossPoint(challenge, forwardIndex),
+    palette.card,
+    2,
+  );
+  drawBossDestination(
+    context,
+    getBossPoint(challenge, reverseIndex),
+    palette.elevator,
+    4,
+  );
+
+  const boss = getBossPoint(challenge, state.bossIndex);
+  drawPerson(
+    context,
+    boss,
+    getBossFacing(challenge, state.bossIndex, state.bossDirection),
+    'boss',
+  );
+  drawControlledBossMarker(context, boss);
+  drawPerson(context, state.employee, state.employeeFacing, 'player');
+
+  if (state.catches > 0 && state.status === 'playing') {
+    const origin = tileOrigin(state.employee);
+    context.fillStyle = palette.white;
+    context.fillRect(origin.x + 11, origin.y, 4, 6);
+    context.fillStyle = palette.boss;
+    context.fillRect(origin.x + 12, origin.y + 1, 2, 3);
+    context.fillRect(origin.x + 12, origin.y + 5, 2, 1);
+  }
+
+  canvas.dataset.player = pointKey(state.employee);
   canvas.dataset.boss = pointKey(boss);
 }

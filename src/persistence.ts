@@ -1,19 +1,26 @@
 import { previousDateKey } from './game/date';
+import {
+  BOSS_CAMPAIGN_LEVELS,
+  isBossCampaignLevelUnlocked,
+} from './game/boss-campaign';
 import { CAMPAIGN_LEVELS, isCampaignLevelUnlocked } from './game/campaign';
-import type { CampaignProgress, RunResult } from './game/types';
+import type { BossCampaignProgress, CampaignProgress, RunResult } from './game/types';
 
-export const SAVE_VERSION = 2;
-export const STORAGE_KEY = 'no-overtime-game:save:v2';
+export const SAVE_VERSION = 3;
+export const STORAGE_KEY = 'no-overtime-game:save:v3';
+export const LEGACY_V2_STORAGE_KEY = 'no-overtime-game:save:v2';
 export const LEGACY_STORAGE_KEY = 'no-overtime-game:save:v1';
 
 export interface SaveData {
   version: number;
   seenTutorial: boolean;
+  seenBossTutorial: boolean;
   muted: boolean;
   bestByDate: Record<string, RunResult>;
   streak: number;
   lastCompletedDate: string | null;
   campaignProgress: CampaignProgress;
+  bossCampaignProgress: BossCampaignProgress;
 }
 
 export interface StorageLike {
@@ -25,11 +32,13 @@ export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
     seenTutorial: false,
+    seenBossTutorial: false,
     muted: false,
     bestByDate: {},
     streak: 0,
     lastCompletedDate: null,
     campaignProgress: { completedLevelIds: [] },
+    bossCampaignProgress: { completedLevelIds: [] },
   };
 }
 
@@ -57,6 +66,11 @@ interface LegacySaveData {
   lastCompletedDate?: unknown;
 }
 
+interface LegacyV2SaveData extends Omit<LegacySaveData, 'version'> {
+  version: 2;
+  campaignProgress?: unknown;
+}
+
 function sanitizeBestByDate(value: unknown): Record<string, RunResult> {
   const bestByDate: Record<string, RunResult> = {};
   if (value && typeof value === 'object') {
@@ -69,10 +83,41 @@ function sanitizeBestByDate(value: unknown): Record<string, RunResult> {
   return bestByDate;
 }
 
-function migrateLegacySave(candidate: LegacySaveData): SaveData {
+function sanitizeOrderedProgress(
+  value: unknown,
+  orderedLevelIds: string[],
+): string[] {
+  const validLevelIds = new Set(orderedLevelIds);
+  const candidate = value as { completedLevelIds?: unknown } | null;
+  const storedLevelIds = new Set(
+    Array.isArray(candidate?.completedLevelIds)
+      ? candidate.completedLevelIds.filter(
+          (id): id is string => typeof id === 'string' && validLevelIds.has(id),
+        )
+      : [],
+  );
+  const completedLevelIds: string[] = [];
+  for (const levelId of orderedLevelIds) {
+    if (!storedLevelIds.has(levelId)) break;
+    completedLevelIds.push(levelId);
+  }
+  return completedLevelIds;
+}
+
+function migrateLegacySave(
+  candidate: LegacySaveData | LegacyV2SaveData,
+): SaveData {
+  const campaignProgress =
+    candidate.version === 2
+      ? sanitizeOrderedProgress(
+          candidate.campaignProgress,
+          CAMPAIGN_LEVELS.map((level) => level.id),
+        )
+      : [];
   return {
     version: SAVE_VERSION,
     seenTutorial: candidate.seenTutorial === true,
+    seenBossTutorial: false,
     muted: candidate.muted === true,
     bestByDate: sanitizeBestByDate(candidate.bestByDate),
     streak:
@@ -81,7 +126,8 @@ function migrateLegacySave(candidate: LegacySaveData): SaveData {
         : 0,
     lastCompletedDate:
       typeof candidate.lastCompletedDate === 'string' ? candidate.lastCompletedDate : null,
-    campaignProgress: { completedLevelIds: [] },
+    campaignProgress: { completedLevelIds: campaignProgress },
+    bossCampaignProgress: { completedLevelIds: [] },
   };
 }
 
@@ -90,30 +136,26 @@ function sanitizeSave(value: unknown): SaveData {
     return createDefaultSave();
   }
   const candidate = value as Partial<SaveData>;
-  if (candidate.version === 1) {
-    return migrateLegacySave(value as LegacySaveData);
+  if (candidate.version === 1 || candidate.version === 2) {
+    return migrateLegacySave(value as LegacySaveData | LegacyV2SaveData);
   }
   if (candidate.version !== SAVE_VERSION) {
     return createDefaultSave();
   }
 
-  const validLevelIds = new Set(CAMPAIGN_LEVELS.map((level) => level.id));
-  const storedLevelIds = new Set(
-    Array.isArray(candidate.campaignProgress?.completedLevelIds)
-      ? candidate.campaignProgress.completedLevelIds.filter(
-          (id): id is string => typeof id === 'string' && validLevelIds.has(id),
-        )
-      : [],
+  const completedLevelIds = sanitizeOrderedProgress(
+    candidate.campaignProgress,
+    CAMPAIGN_LEVELS.map((level) => level.id),
   );
-  const completedLevelIds: string[] = [];
-  for (const level of CAMPAIGN_LEVELS) {
-    if (!storedLevelIds.has(level.id)) break;
-    completedLevelIds.push(level.id);
-  }
+  const completedBossLevelIds = sanitizeOrderedProgress(
+    candidate.bossCampaignProgress,
+    BOSS_CAMPAIGN_LEVELS.map((level) => level.id),
+  );
 
   return {
     version: SAVE_VERSION,
     seenTutorial: candidate.seenTutorial === true,
+    seenBossTutorial: candidate.seenBossTutorial === true,
     muted: candidate.muted === true,
     bestByDate: sanitizeBestByDate(candidate.bestByDate),
     streak:
@@ -123,6 +165,7 @@ function sanitizeSave(value: unknown): SaveData {
     lastCompletedDate:
       typeof candidate.lastCompletedDate === 'string' ? candidate.lastCompletedDate : null,
     campaignProgress: { completedLevelIds },
+    bossCampaignProgress: { completedLevelIds: completedBossLevelIds },
   };
 }
 
@@ -131,6 +174,10 @@ export function loadSave(storage: StorageLike): SaveData {
     const raw = storage.getItem(STORAGE_KEY);
     if (raw) {
       return sanitizeSave(JSON.parse(raw) as unknown);
+    }
+    const legacyV2Raw = storage.getItem(LEGACY_V2_STORAGE_KEY);
+    if (legacyV2Raw) {
+      return sanitizeSave(JSON.parse(legacyV2Raw) as unknown);
     }
     const legacyRaw = storage.getItem(LEGACY_STORAGE_KEY);
     return legacyRaw ? sanitizeSave(JSON.parse(legacyRaw) as unknown) : createDefaultSave();
@@ -179,6 +226,23 @@ export function recordCampaignCompletion(save: SaveData, levelId: string): SaveD
     ...save,
     campaignProgress: {
       completedLevelIds: [...save.campaignProgress.completedLevelIds, levelId],
+    },
+  };
+}
+
+export function recordBossCampaignCompletion(save: SaveData, levelId: string): SaveData {
+  const level = BOSS_CAMPAIGN_LEVELS.find((candidate) => candidate.id === levelId);
+  if (
+    !level ||
+    save.bossCampaignProgress.completedLevelIds.includes(levelId) ||
+    !isBossCampaignLevelUnlocked(level, save.bossCampaignProgress)
+  ) {
+    return save;
+  }
+  return {
+    ...save,
+    bossCampaignProgress: {
+      completedLevelIds: [...save.bossCampaignProgress.completedLevelIds, levelId],
     },
   };
 }

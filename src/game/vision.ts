@@ -1,4 +1,4 @@
-import type { ChallengeDefinition, Direction, GameState, Point } from './types';
+import type { ChallengeDefinition, ChallengeRules, Direction, GameState, Point } from './types';
 import { pointKey } from './types';
 
 const directionVectors: Record<Direction, Point> = {
@@ -8,19 +8,19 @@ const directionVectors: Record<Direction, Point> = {
   left: { x: -1, y: 0 },
 };
 
-export function getTile(challenge: ChallengeDefinition, point: Point): string {
+export function getTile(challenge: ChallengeRules, point: Point): string {
   return challenge.tiles[point.y]?.[point.x] ?? '#';
 }
 
-export function isInside(challenge: ChallengeDefinition, point: Point): boolean {
+export function isInside(challenge: ChallengeRules, point: Point): boolean {
   return point.x >= 0 && point.y >= 0 && point.x < challenge.width && point.y < challenge.height;
 }
 
-export function isStaticBlocker(challenge: ChallengeDefinition, point: Point): boolean {
+export function isStaticBlocker(challenge: ChallengeRules, point: Point): boolean {
   return getTile(challenge, point) !== '.';
 }
 
-export function getActiveCleaningCart(challenge: ChallengeDefinition, turn: number): Point | null {
+export function getActiveCleaningCart(challenge: ChallengeRules, turn: number): Point | null {
   const event = challenge.events.find(
     (candidate) =>
       candidate.kind === 'cleaning-cart' &&
@@ -30,7 +30,7 @@ export function getActiveCleaningCart(challenge: ChallengeDefinition, turn: numb
   return event?.kind === 'cleaning-cart' ? event.target : null;
 }
 
-export function getVisionRange(challenge: ChallengeDefinition, turn: number): number {
+export function getVisionRange(challenge: ChallengeRules, turn: number): number {
   const blackout = challenge.events.some(
     (event) =>
       event.kind === 'blackout' &&
@@ -40,7 +40,7 @@ export function getVisionRange(challenge: ChallengeDefinition, turn: number): nu
   return blackout ? 1 : 3;
 }
 
-export function getBossPoint(challenge: ChallengeDefinition, bossIndex: number): Point {
+export function getBossPoint(challenge: ChallengeRules, bossIndex: number): Point {
   const point = challenge.bossPath[bossIndex];
   if (!point) {
     throw new Error(`Invalid boss path index: ${bossIndex}`);
@@ -49,7 +49,7 @@ export function getBossPoint(challenge: ChallengeDefinition, bossIndex: number):
 }
 
 export function advanceBossIndex(
-  challenge: ChallengeDefinition,
+  challenge: ChallengeRules,
   bossIndex: number,
   direction: 1 | -1,
 ): number {
@@ -58,7 +58,7 @@ export function advanceBossIndex(
 }
 
 export function getBossFacing(
-  challenge: ChallengeDefinition,
+  challenge: ChallengeRules,
   bossIndex: number,
   direction: 1 | -1,
 ): Direction {
@@ -98,7 +98,7 @@ function linePoints(from: Point, to: Point): Point[] {
 }
 
 function hasLineOfSight(
-  challenge: ChallengeDefinition,
+  challenge: ChallengeRules,
   from: Point,
   target: Point,
   turn: number,
@@ -114,7 +114,7 @@ function hasLineOfSight(
 }
 
 export function getBossVision(
-  challenge: ChallengeDefinition,
+  challenge: ChallengeRules,
   bossIndex: number,
   direction: 1 | -1,
   turn: number,

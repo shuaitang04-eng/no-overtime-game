@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { RunResult } from '../src/game/types';
 import {
   LEGACY_STORAGE_KEY,
+  LEGACY_V2_STORAGE_KEY,
   STORAGE_KEY,
   createDefaultSave,
   loadSave,
   persistSave,
+  recordBossCampaignCompletion,
   recordCampaignCompletion,
   recordWin,
   type StorageLike,
@@ -45,7 +47,7 @@ describe('local persistence', () => {
     expect(loadSave(storage)).toEqual(save);
   });
 
-  it('migrates a v1 save without losing daily records or preferences', () => {
+  it('migrates a v1 save to v3 without losing daily records or preferences', () => {
     const storage = new MemoryStorage();
     const dailyBest = result('2026-08-25', 17, 1);
     storage.values.set(
@@ -61,13 +63,46 @@ describe('local persistence', () => {
     );
 
     expect(loadSave(storage)).toEqual({
-      version: 2,
+      version: 3,
       seenTutorial: true,
+      seenBossTutorial: false,
       muted: true,
       bestByDate: { '2026-08-25': dailyBest },
       streak: 4,
       lastCompletedDate: '2026-08-25',
       campaignProgress: { completedLevelIds: [] },
+      bossCampaignProgress: { completedLevelIds: [] },
+    });
+  });
+
+  it('migrates v2 employee campaign progress into v3 independently', () => {
+    const storage = new MemoryStorage();
+    const dailyBest = result('2026-08-26', 19, 0);
+    storage.values.set(
+      LEGACY_V2_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        seenTutorial: true,
+        muted: false,
+        bestByDate: { '2026-08-26': dailyBest },
+        streak: 2,
+        lastCompletedDate: '2026-08-26',
+        campaignProgress: {
+          completedLevelIds: ['rookie-drill', 'cubicle-maze'],
+        },
+      }),
+    );
+
+    expect(loadSave(storage)).toEqual({
+      version: 3,
+      seenTutorial: true,
+      seenBossTutorial: false,
+      muted: false,
+      bestByDate: { '2026-08-26': dailyBest },
+      streak: 2,
+      lastCompletedDate: '2026-08-26',
+      campaignProgress: { completedLevelIds: ['rookie-drill', 'cubicle-maze'] },
+      bossCampaignProgress: { completedLevelIds: [] },
     });
   });
 
@@ -99,6 +134,21 @@ describe('local persistence', () => {
     const save = createDefaultSave();
     expect(recordCampaignCompletion(save, 'cubicle-maze')).toBe(save);
     expect(recordCampaignCompletion(save, 'not-a-level')).toBe(save);
+  });
+
+  it('records boss campaign progress independently and in order', () => {
+    const save = createDefaultSave();
+    expect(recordBossCampaignCompletion(save, 'partition-blind-spots')).toBe(save);
+    const first = recordBossCampaignCompletion(save, 'routine-inspection');
+    expect(first.bossCampaignProgress.completedLevelIds).toEqual(['routine-inspection']);
+    expect(first.campaignProgress).toEqual(save.campaignProgress);
+    expect(first.bestByDate).toEqual(save.bestByDate);
+    expect(recordBossCampaignCompletion(first, 'routine-inspection')).toBe(first);
+    const second = recordBossCampaignCompletion(first, 'partition-blind-spots');
+    expect(second.bossCampaignProgress.completedLevelIds).toEqual([
+      'routine-inspection',
+      'partition-blind-spots',
+    ]);
   });
 
   it('keeps the best result and updates consecutive-day streaks once per day', () => {

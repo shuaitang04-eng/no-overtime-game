@@ -109,7 +109,7 @@ h1 {
 
 .mode-switch {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -157,6 +157,17 @@ h1 {
 
 .mode-switch button.active small {
   color: #a9f4e5;
+}
+
+.mode-switch button[data-mode="boss-campaign"].active {
+  border-color: var(--danger);
+  background: #452338;
+  color: #ff9da8;
+  box-shadow: 4px 4px 0 #24101d;
+}
+
+.mode-switch button[data-mode="boss-campaign"].active small {
+  color: #ffc1c8;
 }
 
 .game-card {
@@ -309,6 +320,20 @@ h1 {
   text-align: center;
 }
 
+.boss-select .modal-kicker,
+.boss-select .campaign-heading > strong {
+  color: #ff9da8;
+}
+
+.boss-select .campaign-heading > strong {
+  border-color: #84384f;
+  background: #3d2032;
+}
+
+.boss-select .level-card.unlocked {
+  border-color: #a54a64;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -453,6 +478,21 @@ h1 {
   background: rgb(255 216 102 / 16%);
 }
 
+.legend-dot.forward {
+  border-color: var(--gold);
+  background: rgb(255 216 102 / 20%);
+}
+
+.legend-dot.reverse {
+  border-color: var(--purple);
+  background: rgb(154 120 240 / 24%);
+}
+
+.legend-dot.target {
+  border-color: var(--accent);
+  background: rgb(93 228 199 / 20%);
+}
+
 .legend-card {
   color: var(--gold);
 }
@@ -519,6 +559,65 @@ h1 {
 .dpad [data-action="down"] {
   grid-column: 2;
   grid-row: 3;
+}
+
+.boss-controls {
+  display: grid;
+  flex: 1 1 430px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.boss-controls button {
+  min-height: 58px;
+  padding: 8px 7px;
+  border: 2px solid var(--border);
+  border-radius: 0;
+  background: var(--panel-2);
+  box-shadow: 3px 3px 0 #090912;
+  font-weight: 800;
+}
+
+.boss-controls button[data-boss-action="reverse"] {
+  border-color: #7056af;
+  color: #c6afff;
+}
+
+.boss-controls button[data-boss-action="hold"] {
+  border-color: #8a6d34;
+  color: var(--gold);
+}
+
+.boss-controls button[data-boss-action="advance"] {
+  border-color: var(--accent-dark);
+  color: var(--accent);
+}
+
+.boss-controls button:active:not(:disabled) {
+  box-shadow: 1px 1px 0 #090912;
+  transform: translate(2px, 2px);
+}
+
+.boss-controls button:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.25);
+  opacity: 0.42;
+}
+
+.boss-controls span,
+.boss-controls small {
+  display: block;
+}
+
+.boss-controls span {
+  margin-bottom: 5px;
+  font-size: 0.73rem;
+}
+
+.boss-controls small {
+  color: var(--muted);
+  font-size: 0.57rem;
+  font-weight: 500;
 }
 
 .utility-buttons {
@@ -716,6 +815,15 @@ h1 {
   .mode-switch button {
     display: block;
     min-height: 62px;
+    padding: 9px 8px;
+  }
+
+  .mode-switch button span {
+    font-size: 0.76rem;
+  }
+
+  .mode-switch button small {
+    font-size: 0.55rem;
   }
 
   .mode-switch button span,
@@ -777,6 +885,15 @@ h1 {
     max-width: 170px;
   }
 
+  .boss-controls {
+    flex-basis: 240px;
+  }
+
+  .boss-controls button {
+    min-height: 54px;
+    padding: 7px 4px;
+  }
+
   .secondary-button,
   .danger-button {
     min-height: 38px;
@@ -799,6 +916,11 @@ h1 {
   }
 
   .dpad {
+    margin: 0 auto 13px;
+  }
+
+  .boss-controls {
+    width: 100%;
     margin: 0 auto 13px;
   }
 
