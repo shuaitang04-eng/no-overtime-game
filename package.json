@@ -2,7 +2,7 @@
   "name": "no-overtime-game",
   "version": "1.0.0",
   "private": true,
-  "description": "《今天不加班》每日像素潜行解谜网页游戏",
+  "description": "《今天不加班》每日挑战与五关闯关像素潜行解谜网页游戏",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

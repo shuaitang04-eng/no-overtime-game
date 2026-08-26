@@ -12,6 +12,7 @@ export type Direction = 'up' | 'right' | 'down' | 'left';
 export type GameAction = Direction | 'wait';
 export type GameStatus = 'playing' | 'won' | 'lost';
 export type EventKind = 'meeting' | 'blackout' | 'cleaning-cart';
+export type GameMode = 'daily' | 'campaign';
 
 interface ChallengeEventBase {
   id: string;
@@ -36,9 +37,8 @@ export interface CleaningCartEvent extends ChallengeEventBase {
 
 export type ChallengeEvent = MeetingEvent | BlackoutEvent | CleaningCartEvent;
 
-export interface ChallengeDefinition {
+interface ChallengeRules {
   schemaVersion: number;
-  dateKey: string;
   seed: number;
   layoutId: string;
   width: number;
@@ -52,6 +52,35 @@ export interface ChallengeDefinition {
   bossStartDirection: 1 | -1;
   events: ChallengeEvent[];
   turnLimit: number;
+}
+
+export interface DailyChallengeDefinition extends ChallengeRules {
+  mode: 'daily';
+  challengeId: string;
+  dateKey: string;
+}
+
+export interface CampaignChallengeDefinition extends ChallengeRules {
+  mode: 'campaign';
+  challengeId: string;
+  levelId: string;
+  levelNumber: number;
+  title: string;
+  description: string;
+}
+
+export type ChallengeDefinition = DailyChallengeDefinition | CampaignChallengeDefinition;
+
+export interface CampaignLevel {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  challenge: CampaignChallengeDefinition;
+}
+
+export interface CampaignProgress {
+  completedLevelIds: string[];
 }
 
 export interface GameState {

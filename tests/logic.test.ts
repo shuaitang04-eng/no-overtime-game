@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyAction, createInitialState } from '../src/game/logic';
-import type { ChallengeDefinition, GameState } from '../src/game/types';
+import type { ChallengeDefinition, DailyChallengeDefinition, GameState } from '../src/game/types';
 import { getBossVision, getVisionRange } from '../src/game/vision';
 
-function simpleChallenge(overrides: Partial<ChallengeDefinition> = {}): ChallengeDefinition {
+function simpleChallenge(overrides: Partial<DailyChallengeDefinition> = {}): ChallengeDefinition {
   return {
     schemaVersion: 1,
+    mode: 'daily',
+    challengeId: 'daily:2026-08-26',
     dateKey: '2026-08-26',
     seed: 1,
     layoutId: 'test',

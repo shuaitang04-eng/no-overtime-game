@@ -6,8 +6,8 @@ import {
   BOARD_WIDTH,
   RULES_VERSION,
   TURN_LIMIT,
-  type ChallengeDefinition,
   type ChallengeEvent,
+  type DailyChallengeDefinition,
   type EventKind,
   type Point,
 } from './types';
@@ -59,7 +59,7 @@ function makeEvents(
     .sort((a, b) => a.triggerTurn - b.triggerTurn);
 }
 
-function makeCandidate(dateKey: string, seed: number, attempt: number): ChallengeDefinition {
+function makeCandidate(dateKey: string, seed: number, attempt: number): DailyChallengeDefinition {
   const random = createRandom(hashString(`${seed}:${attempt}`));
   const template = random.pick(LAYOUTS);
   const start = { ...random.pick(template.starts.filter((point) => tileAt(template, point) === '.')) };
@@ -84,6 +84,8 @@ function makeCandidate(dateKey: string, seed: number, attempt: number): Challeng
 
   return {
     schemaVersion: RULES_VERSION,
+    mode: 'daily',
+    challengeId: `daily:${dateKey}`,
     dateKey,
     seed,
     layoutId: template.id,
@@ -101,9 +103,9 @@ function makeCandidate(dateKey: string, seed: number, attempt: number): Challeng
   };
 }
 
-export function generateDailyChallenge(dateKey: string): ChallengeDefinition {
+export function generateDailyChallenge(dateKey: string): DailyChallengeDefinition {
   const seed = hashString(`${RULES_VERSION}:${dateKey}`);
-  let easiestCandidate: { challenge: ChallengeDefinition; length: number } | null = null;
+  let easiestCandidate: { challenge: DailyChallengeDefinition; length: number } | null = null;
 
   for (let attempt = 0; attempt < 96; attempt += 1) {
     const challenge = makeCandidate(dateKey, seed, attempt);

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { RunResult } from '../src/game/types';
 import {
+  LEGACY_STORAGE_KEY,
   STORAGE_KEY,
   createDefaultSave,
   loadSave,
   persistSave,
+  recordCampaignCompletion,
   recordWin,
   type StorageLike,
 } from '../src/persistence';
@@ -41,6 +43,62 @@ describe('local persistence', () => {
     const save = { ...createDefaultSave(), muted: true, seenTutorial: true };
     persistSave(storage, save);
     expect(loadSave(storage)).toEqual(save);
+  });
+
+  it('migrates a v1 save without losing daily records or preferences', () => {
+    const storage = new MemoryStorage();
+    const dailyBest = result('2026-08-25', 17, 1);
+    storage.values.set(
+      LEGACY_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        seenTutorial: true,
+        muted: true,
+        bestByDate: { '2026-08-25': dailyBest },
+        streak: 4,
+        lastCompletedDate: '2026-08-25',
+      }),
+    );
+
+    expect(loadSave(storage)).toEqual({
+      version: 2,
+      seenTutorial: true,
+      muted: true,
+      bestByDate: { '2026-08-25': dailyBest },
+      streak: 4,
+      lastCompletedDate: '2026-08-25',
+      campaignProgress: { completedLevelIds: [] },
+    });
+  });
+
+  it('sanitizes campaign progress and records repeated clears idempotently', () => {
+    const storage = new MemoryStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...createDefaultSave(),
+        campaignProgress: {
+          completedLevelIds: ['rookie-drill', 'rookie-drill', 'unknown-level', 12],
+        },
+      }),
+    );
+    const loaded = loadSave(storage);
+    expect(loaded.campaignProgress.completedLevelIds).toEqual(['rookie-drill']);
+    const repeated = recordCampaignCompletion(loaded, 'rookie-drill');
+    expect(repeated).toBe(loaded);
+    const advanced = recordCampaignCompletion(loaded, 'cubicle-maze');
+    expect(advanced.campaignProgress.completedLevelIds).toEqual([
+      'rookie-drill',
+      'cubicle-maze',
+    ]);
+    expect(advanced.bestByDate).toEqual(loaded.bestByDate);
+    expect(advanced.streak).toBe(loaded.streak);
+  });
+
+  it('rejects out-of-order or unknown campaign completions', () => {
+    const save = createDefaultSave();
+    expect(recordCampaignCompletion(save, 'cubicle-maze')).toBe(save);
+    expect(recordCampaignCompletion(save, 'not-a-level')).toBe(save);
   });
 
   it('keeps the best result and updates consecutive-day streaks once per day', () => {
