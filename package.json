@@ -1,0 +1,32 @@
+{
+  "name": "no-overtime-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "《今天不加班》每日像素潜行解谜网页游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "tsc --noEmit && vitest run",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "keywords": [
+    "daily-game",
+    "pixel-art",
+    "stealth-puzzle"
+  ],
+  "author": "tans",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.3.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}
