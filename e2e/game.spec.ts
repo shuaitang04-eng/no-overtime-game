@@ -24,6 +24,20 @@ const keyByAction: Record<GameAction, string> = {
   wait: 'Space',
 };
 
+test('loads every production-facing resource without browser errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
+  });
+  await page.goto('/no-overtime-game/', { waitUntil: 'networkidle' });
+  await expect(page.locator('#gameCanvas')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('desktop keyboard completes the daily challenge and keeps the best result', async ({ page }) => {
   await openGame(page);
   const solution = await getSolution(page);
